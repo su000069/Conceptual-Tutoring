@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conceptual Tutoring Platform</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // 将解构赋值指向全局 React 对象
+        const { useState, useEffect, useRef } = React;
+
+        // 严格遵循客户品牌的配色方案
+        const C = {  
+          pri: "#00395B",  acc: "#9ACBFA",  wht: "#FFFFFF",  lg: "#F4F6F8",  mg: "#E2E6EA",  
+          tp: "#00395B",  ts: "#5A7A8F",  tm: "#8FA3B2",  dan: "#D94A4A",  danBg: "#FDE8E8",  
+          suc: "#2DA06B",  sucBg: "#E6F7EF",  wrnBg: "#FFF5E0",  wrn: "#996B00"
+        };
+
+        const SESSIONS = [  
+          { id: 1, subject: "Math", topic: "Calculus", tutor: "Sarah T.", date: "Mar 20", time: "4:00 PM", day: "Thursday" },  
+          { id: 2, subject: "Physics", topic: "Mechanics", tutor: "James R.", date: "Mar 24", time: "5:30 PM", day: "Monday" },  
+          { id: 3, subject: "Chemistry", topic: "Organic", tutor: "Priya K.", date: "Mar 27", time: "3:00 PM", day: "Thursday" }
+        ];
+
+        const INIT_CHATS = {  
+          tutor: {    
+            name: "Sarah T.", role: "Math Tutor", online: true,    
+            messages: [      
+              { from: "them", text: "Hey Alex! Just a reminder to submit your calculus homework before our next session on Thursday.", time: "2:30 PM" },      
+              { from: "me", text: "Got it, I'll have it done by tonight!", time: "2:45 PM" },      
+              { from: "them", text: "Great! Also, we'll be starting integration by parts next session. Take a look at section 7.1 if you get a chance.", time: "2:47 PM" },      
+              { from: "me", text: "Will do. Thanks for the heads up!", time: "3:01 PM" }    
+            ]  
+          },  
+          bot: {    
+            name: "Scheduling Bot", role: "Automated", online: true,    
+            messages: [      
+              { from: "them", text: "Your next session is Thursday, March 20 at 4:00 PM with Sarah T. Would you like to reschedule?", time: "9:00 AM" },      
+              { from: "me", text: "No, that works for me.", time: "9:15 AM" },      
+              { from: "them", text: "Confirmed! You'll receive a reminder 30 minutes before your session.", time: "9:15 AM" }    
+            ]  
+          },  
+          admin: {    
+            name: "Admin", role: "Support", online: false,    
+            messages: [      
+              { from: "them", text: "Welcome to Conceptual Tutoring! If you ever need help with your account, billing, or anything else — just reach out here.", time: "Mon" },      
+              { from: "me", text: "Thanks! Quick question — can I add a second subject to my plan?", time: "Tue" },      
+              { from: "them", text: "Absolutely! I'll send over the details. You can add subjects at any time and we'll match you with the right tutor.", time: "Tue" }    
+            ]  
+          }
+        };
+
+        // SVG 图标组件
+        function IconHome({ color }) {  
+          return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>;
+        }
+        function IconCal({ color }) {  
+          return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
+        }
+        function IconMsg({ color }) {  
+          return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>;
+        }
+        function IconPlay({ color }) {  
+          return <svg width="16" height="16" viewBox="0 0 24 24" fill={color || C.pri} stroke="none"><polygon points="5,3 19,12 5,21"/></svg>;
+        }
+        function IconCheck() {  
+          return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
+        }
+        function IconSend() {  
+          return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>;
+        }
+        function IconAttach() {  
+          return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.ts} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>;
+        }
+        function IconChevL() {  
+          return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.ts} strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>;
+        }
+        function IconChevR() {  
+          return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.ts} strokeWidth="2"><polyline points="9 6 15 12 9 18"/></svg>;
+        }
+        function IconUpload({ color }) {  
+          return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color || "#fff"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>;
+        }
+        function IconWarn() {  
+          return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.wrn} strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
+        }
+        function IconInfo() {  
+          return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.pri} strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>;
+        }
+
+        const iconMap = { home: IconHome, calendar: IconCal, messages: IconMsg };
+
+        // 全局微调微动效 CSS
+        const globalCSS = `* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', system-ui, sans-serif; }.sb-btn { display:flex;align-items:center;gap:12px;width:100%;padding:11px 14px;margin-bottom:4px;border:none;border-radius:10px;cursor:pointer;font-size:14px;text-align:left;transition:all 0.15s;font-family:inherit; }.sb-btn:hover { background:rgba(255,255,255,0.08) !important; }.sb-btn.act { background:rgba(154,203,250,0.15) !important; }.card-h:hover { box-shadow: 0 2px 16px rgba(0,57,91,0.07); transform: translateY(-1px); }.card-h { transition: box-shadow 0.15s, transform 0.15s; }.day-c { transition: background 0.1s; cursor: pointer; }.day-c:hover { background: #9ACBFA33; }.day-c.oth { cursor: default; }.day-c.oth:hover { background: transparent; }.cc:hover { background: #F4F6F8; }.cc { transition: background 0.1s; }.tr:hover { background: #F4F6F8; }.tr { transition: background 0.1s; }.bo:hover { background: #9ACBFA22; }.bo { transition: all 0.15s; }.bs:hover { opacity: 0.88; }.bs { transition: opacity 0.15s; }.jb:active { transform: scale(0.9); }.jb { transition: transform 0.1s; }input:focus { outline: none; border-color: #9ACBFA !important; }::-webkit-scrollbar { width: 6px; }::-webkit-scrollbar-track { background: transparent; }::-webkit-scrollbar-thumb { background: #E2E6EA; border-radius: 3px; }`;
+
+        function Sidebar({ page, setPage }) {  
+          return (    
+            <div style={{ width:240, background:C.pri, display:"flex", flexDirection:"column", height:"100vh", position:"fixed", left:0, top:0, zIndex:10 }}>      
+              <div style={{ padding:"28px 24px 32px", borderBottom:"1px solid rgba(255,255,255,0.1)" }}>        
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>          
+                  <div style={{ width:36, height:36, borderRadius:10, background:C.acc, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, fontSize:16, color:C.pri }}>C</div>          
+                  <div>            
+                    <div style={{ color:C.wht, fontWeight:600, fontSize:15, letterSpacing:"-0.3px" }}>Conceptual</div>            
+                    <div style={{ color:C.acc, fontSize:11, fontWeight:500, letterSpacing:"0.5px", marginTop:-1 }}>TUTORING</div>          
+                  </div>        
+                </div>      
+              </div>      
+              <nav style={{ padding:"16px 12px", flex:1 }}>        
+                {["home","calendar","messages"].map(id => {          
+                  const active = page === id;          
+                  const Ic = iconMap[id];          
+                  const label = id.charAt(0).toUpperCase() + id.slice(1);          
+                  return (            
+                    <button key={id} onClick={() => setPage(id)}              
+                      className={`sb-btn ${active ? "act" : ""}`}              
+                      style={{ background: active ? "rgba(154,203,250,0.15)" : "transparent", color: active ? C.wht : "rgba(255,255,255,0.55)", fontWeight: active ? 600 : 400 }}>              
+                      <Ic color={active ? C.acc : "rgba(255,255,255,0.45)"} />              
+                      {label}              
+                      {id === "messages" && <span style={{ marginLeft:"auto", background:C.acc, color:C.pri, fontSize:11, fontWeight:700, borderRadius:10, padding:"2px 8px" }}>2</span>}            
+                    </button>          
+                  );        
+                })}      
+              </nav>      
+              <div style={{ padding:"16px 12px", borderTop:"1px solid rgba(255,255,255,0.1)" }}>        
+                <div style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 14px" }}>          
+                  <div style={{ width:34, height:34, borderRadius:"50%", background:C.acc, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, fontSize:14, color:C.pri }}>A</div>          
+                  <div>            
+                    <div style={{ color:C.wht, fontSize:13, fontWeight:600 }}>Alex M.</div>            
+                    <div style={{ color:"rgba(255,255,255,0.45)", fontSize:11 }}>Grade 11</div>          
+                  </div>        
+                </div>      
+              </div>    
+            </div>  
+          );
+        }
+
+        function Header({ title, sub }) {  
+          return (    
+            <div style={{ padding:"28px 36px 20px", display:"flex", alignItems:"flex-end", justifyContent:"space-between" }}>      
+              <div>        
+                <h1 style={{ fontSize:26, fontWeight:700, color:C.tp, margin:0, letterSpacing:"-0.5px" }}>{title}</h1>        
+                {sub && <p style={{ fontSize:14, color:C.ts, margin:"4px 0 0" }}>{sub}</p>}      
+              </div>      
+              <div style={{ fontSize:13, color:C.tm }}>        
+                {new Date().toLocaleDateString("en-CA",{weekday:"long",month:"long",day:"numeric",year:"numeric"})}      
+              </div>    
+            </div>  
+          );
+        }
+
+        function HomePage() {  
+          const [hwSubmitted, setHwSubmitted] = useState(false);  
+          const [matUploaded, setMatUploaded] = useState(false);  
+          return (    
+            <div>      
+              <Header title="Welcome back, Alex" sub="Here's what's happening with your tutoring." />      
+              <div style={{ padding:"0 36px 36px" }}>        
+                <div style={{ marginBottom:28 }}>          
+                  <div style={{ fontSize:13, fontWeight:600, color:C.tp, marginBottom:12, textTransform:"uppercase", letterSpacing:"0.5px" }}>Next session</div>          
+                  <div style={{ background:C.wht, borderRadius:16, padding:"28px 32px", border:`1px solid ${C.mg}` }}>            
+                    <div style={{ display:"flex", alignItems:"center", gap:20, marginBottom:24 }}>              
+                      <div style={{ width:72, minHeight:72, borderRadius:14, background:`${C.acc}22`, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>                
+                        <div style={{ fontSize:12, fontWeight:600, color:C.pri }}>{SESSIONS[0].date.split(" ")[0]}</div>                
+                        <div style={{ fontSize:26, fontWeight:700, color:C.pri }}>{SESSIONS[0].date.split(" ")[1]}</div>              
+                      </div>              
+                      <div style={{ flex:1 }}>                
+                        <div style={{ fontSize:20, fontWeight:700, color:C.tp }}>{SESSIONS[0].subject} — {SESSIONS[0].topic}</div>                
+                        <div style={{ fontSize:14, color:C.ts, marginTop:4 }}>with {SESSIONS[0].tutor} · {SESSIONS[0].day} at {SESSIONS[0].time}</div>              
+                      </div>            
+                    </div>            
+                    <div style={{ display:"flex", gap:10 }}>              
+                      <button className="bs" style={{ flex:1, padding:"13px 0", borderRadius:10, border:"none", background:C.pri, color:C.wht, fontSize:14, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>                
+                        <IconPlay color="#fff" /> Join session              
+                      </button>              
+                      <button className="bo" style={{ flex:1, padding:"13px 0", borderRadius:10, border:`1.5px solid ${C.mg}`, background:"transparent", color:C.ts, fontSize:14, fontWeight:500, cursor:"pointer" }}>                
+                        Reschedule              
+                      </button>            
+                    </div>          
+                  </div>        
+                </div>        
+                <div style={{ fontSize:13, fontWeight:600, color:C.tp, marginBottom:12, textTransform:"uppercase", letterSpacing:"0.5px" }}>To do</div>        
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>          
+                  <div style={{ background:C.wht, borderRadius:16, padding:"24px 28px", border:`1px solid ${C.mg}`, display:"flex", flexDirection:"column", gap:16 }}>            
+                    <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between" }}>              
+                      <div>                
+                        <div style={{ fontSize:16, fontWeight:600, color:C.tp }}>Submit homework</div>                
+                        <div style={{ fontSize:13, color:C.ts, marginTop:4 }}>From your last session — Math with Sarah T.</div>              
+                      </div>              
+                      {!hwSubmitted && (                
+                        <span style={{ fontSize:11, fontWeight:600, color:C.dan, background:C.danBg, padding:"4px 12px", borderRadius:20, flexShrink:0 }}>Overdue</span>              
+                      )}            
+                    </div>            
+                    {hwSubmitted ? (              
+                      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 18px", borderRadius:10, background:C.sucBg }}>                
+                        <IconCheck />                
+                        <span style={{ fontSize:14, fontWeight:500, color:C.suc }}>Homework submitted!</span>              
+                      </div>            
+                    ) : (              
+                      <button className="bs" onClick={() => setHwSubmitted(true)}                
+                        style={{ width:"100%", padding:"13px 0", borderRadius:10, border:"none", background:C.pri, color:C.wht, fontSize:14, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>                
+                        <IconUpload /> Upload homework              
+                      </button>            
+                    )}          
+                  </div>          
+                  <div style={{ background:C.wht, borderRadius:16, padding:"24px 28px", border:`1px solid ${C.mg}`, display:"flex", flexDirection:"column", gap:16 }}>            
+                    <div>              
+                      <div style={{ fontSize:16, fontWeight:600, color:C.tp }}>Upload materials</div>              
+                      <div style={{ fontSize:13, color:C.ts, marginTop:4 }}>For your next session — Math with Sarah T.</div>            
+                    </div>            
+                    {matUploaded ? (              
+                      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 18px", borderRadius:10, background:C.sucBg }}>                
+                        <IconCheck />                
+                        <span style={{ fontSize:14, fontWeight:500, color:C.suc }}>Materials uploaded!</span>              
+                      </div>            
+                    ) : (              
+                      <button className="bo" onClick={() => setMatUploaded(true)}                
+                        style={{ width:"100%", padding:"13px 0", borderRadius:10, border:`1.5px solid ${C.pri}`, background:"transparent", color:C.pri, fontSize:14, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>                
+                        <IconUpload color={C.pri} /> Choose files              
+                      </button>            
+                    )}          
+                  </div>        
+                </div>      
+              </div>    
+            </div>  
+          );
+        }
+
+        function CalendarPage() {  
+          const [view, setView] = useState("week");  
+          const [selDay, setSelDay] = useState(20);  
+          const [uploadMsg, setUploadMsg] = useState(false);  
+          const firstDay = new Date(2026, 2, 1).getDay();  
+          const daysInMonth = 31;  
+          const daysInPrev = 28;  
+          const sessionDays = { 12:1, 16:1, 20:1, 24:1, 27:1 };  
+          const overdueDays = { 18:1 };  
+          const mDays = [];  
+          for (let i = firstDay - 1; i >= 0; i--) mDays.push({ d: daysInPrev - i, oth: true });  
+          for (let i = 1; i <= daysInMonth; i++) mDays.push({ d: i, oth: false });  
+          while (mDays.length < 42) mDays.push({ d: mDays.length - daysInMonth - firstDay + 1, oth: true });  
+          const weekDates = [15,16,17,18,19,20,21];  
+          const dayLabels = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];  
+          const hours = [9,10,11,12,13,14,15,16,17,18];  
+          const fmtH = h => h === 12 ? "12 PM" : h > 12 ? `${h-12} PM` : `${h} AM`;  
+          const weekEvents = [    
+            { dayIdx:5, startH:16, dur:1, subject:"Math", topic:"Calculus", tutor:"Sarah T.", bg:C.pri, fg:C.wht },  
+          ];  
+          const sel = SESSIONS.find(s => parseInt(s.date.split(" ")[1]) === selDay);  
+          return (    
+            <div>      
+              <Header title="Calendar" sub="Manage your sessions and deadlines." />      
+              <div style={{ padding:"0 36px 36px" }}>        
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>          
+                  <div style={{ display:"flex", alignItems:"center", gap:12 }}>            
+                    <button style={{ background:"none", border:"none", cursor:"pointer", padding:4 }}><IconChevL /></button>            
+                    <span style={{ fontSize:16, fontWeight:600, color:C.tp }}>              
+                      {view === "week" ? "Mar 15 – 21, 2026" : "March 2026"}            
+                    </span>            
+                    <button style={{ background:"none", border:"none", cursor:"pointer", padding:4 }}><IconChevR /></button>          
+                  </div>          
+                  <div style={{ display:"flex", gap:4, background:C.lg, borderRadius:10, padding:3 }}>            
+                    {["week","month"].map(v => (              
+                      <button key={v} onClick={() => setView(v)} style={{                
+                        padding:"7px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13,                
+                        fontWeight: view === v ? 600 : 400,                
+                        background: view === v ? C.wht : "transparent",                
+                        color: view === v ? C.pri : C.ts,                
+                        boxShadow: view === v ? "0 1px 4px rgba(0,0,0,0.06)" : "none",                
+                        textTransform:"capitalize",              }}>{v}</button>            
+                    ))}          
+                  </div>        
+                </div>        
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 320px", gap:24 }}>          
+                  <div style={{ background:C.wht, borderRadius:14, padding:20, border:`1px solid ${C.mg}` }}>            
+                    {view === "week" ? (              
+                      <div>                
+                        <div style={{ display:"grid", gridTemplateColumns:"54px repeat(7,1fr)", gap:0, marginBottom:4 }}>                  
+                          <div />                  
+                          {weekDates.map((d,i) => {                    
+                            const isToday = d === 15;                    
+                            const isSel = d === selDay;                    
+                            return (                      
+                              <div key={i} onClick={() => setSelDay(d)} style={{ textAlign:"center", padding:"6px 0", cursor:"pointer" }}>                        
+                                <div style={{ fontSize:11, fontWeight:600, color:C.tm }}>{dayLabels[i]}</div>                        
+                                <div style={{                          
+                                  width:30, height:30, borderRadius:"50%", margin:"4px auto 0",                          
+                                  display:"flex", alignItems:"center", justifyContent:"center",                          
+                                  fontSize:14, fontWeight: (isToday||isSel) ? 700 : 400,                          
+                                  background: isSel ? C.pri : isToday ? `${C.acc}33` : "transparent",                          
+                                  color: isSel ? C.wht : C.tp,                        
+                                }}>{d}</div>                      
+                              </div>                    
+                            );                  
+                          })}                
+                        </div>                
+                        <div style={{ position:"relative", borderTop:`1px solid ${C.mg}` }}>                  
+                          {hours.map(h => (                    
+                            <div key={h} style={{ display:"grid", gridTemplateColumns:"54px repeat(7,1fr)", gap:0, height:52, borderBottom:`1px solid ${C.mg}08` }}>                      
+                              <div style={{ fontSize:11, color:C.tm, paddingTop:4, textAlign:"right", paddingRight:10 }}>{fmtH(h)}</div>                      
+                              {weekDates.map((_,ci) => (                        
+                                <div key={ci} style={{ borderLeft:`1px solid ${C.mg}50`, minHeight:52 }} />                      
+                              ))}                    
+                            </div>                  
+                          ))}                  
+                          {weekEvents.map((ev,i) => {                    
+                            const top = (ev.startH - 9) * 52 + 2;                    
+                            const h = ev.dur * 52 - 4;                    
+                            const left = `calc(54px + ${ev.dayIdx} * ((100% - 54px) / 7) + 3px)`;                    
+                            const w = `calc((100% - 54px) / 7 - 6px)`;                    
+                            return (                      
+                              <div key={i} onClick={() => setSelDay(20)}                        
+                                style={{                          
+                                  position:"absolute", top, left, width:w, height:h,                          
+                                  background:ev.bg, borderRadius:8, padding:"6px 10px",                          
+                                  cursor:"pointer", overflow:"hidden", zIndex:2,                        
+                                }}>                        
+                                <div style={{ fontSize:12, fontWeight:600, color:ev.fg, lineHeight:1.3 }}>{ev.subject}</div>                        
+                                <div style={{ fontSize:10, color:`${ev.fg}CC`, marginTop:1 }}>{ev.tutor} · {fmtH(ev.startH)}</div>                      
+                              </div>                    
+                            );                  
+                          })}                
+                        </div>              
+                      </div>            
+                    ) : (              
+                      <div>                
+                        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2 }}>                  
+                          {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d => (                    
+                            <div key={d} style={{ textAlign:"center", fontSize:11, fontWeight:600, color:C.tm, padding:"6px 0" }}>{d}</div>                  
+                          ))}                  
+                          {mDays.map((day, i) => {                    
+                            const today = !day.oth && day.d === 15;                    
+                            const isSel = !day.oth && day.d === selDay;                    
+                            const hasSess = !day.oth && sessionDays[day.d];                    
+                            const isOver = !day.oth && overdueDays[day.d];                    
+                            return (                      
+                              <div key={i}                        
+                                onClick={() => { if (!day.oth) setSelDay(day.d); }}                        
+                                className={`day-c ${day.oth ? "oth" : ""}`}                        
+                                style={{                          
+                                  textAlign:"center", padding:"8px 4px", borderRadius:10,                          
+                                  color: day.oth ? C.tm : isSel ? C.wht : C.tp,                          
+                                  background: isSel ? C.pri : today ? `${C.acc}33` : "transparent",                          
+                                  fontWeight: (today || isSel) ? 600 : 400,                          
+                                  fontSize:13,                        
+                                }}>                        
+                                {day.d}                        
+                                {(hasSess || isOver) && (                          
+                                  <div style={{ display:"flex", gap:3, justifyContent:"center", marginTop:3 }}>                            
+                                    {hasSess && <div style={{ width:5, height:5, borderRadius:"50%", background: isSel ? C.acc : C.pri }} />}                            
+                                    {isOver && <div style={{ width:5, height:5, borderRadius:"50%", background: isSel ? "#FCA5A5" : C.dan }} />}                          
+                                  </div>                        
+                                )}                      
+                              </div>                    
+                            );                  
+                          })}                
+                        </div>              
+                      </div>            
+                    )}          
+                  </div>          
+                  <div style={{ display:"flex", flexDirection:"column", gap:12 }}>            
+                    {sel ? (              
+                      <div style={{ background:C.wht, borderRadius:14, padding:20, border:`1px solid ${C.mg}` }}>                
+                        <div style={{ fontSize:12, fontWeight:600, color:C.tm, textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:10 }}>Session details</div>                
+                        <div style={{ fontSize:17, fontWeight:700, color:C.tp }}>{sel.subject} — {sel.topic}</div>                
+                        <div style={{ fontSize:13, color:C.ts, marginTop:4 }}>with {sel.tutor}</div>                
+                        <div style={{ marginTop:14, padding:"10px 14px", borderRadius:10, background:`${C.acc}15`, fontSize:13, color:C.pri, fontWeight:500 }}>                  
+                          {sel.day}, {sel.date} at {sel.time}                
+                        </div>                
+                        <div style={{ display:"flex", gap:8, marginTop:16 }}>                  
+                          <button className="bo" style={{ flex:1, padding:"10px 0", borderRadius:10, border:`1px solid ${C.pri}`, background:"transparent", color:C.pri, fontSize:13, fontWeight:600, cursor:"pointer" }}>                    
+                            Reschedule                  
+                          </button>                  
+                          <button className="bs" onClick={() => { setUploadMsg(true); setTimeout(() => setUploadMsg(false), 2000); }}                    
+                            style={{ flex:1, padding:"10px 0", borderRadius:10, border:"none", background:C.pri, color:C.wht, fontSize:13, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>                    
+                            <IconUpload /> Upload                  
+                          </button>                
+                        </div>                
+                        {uploadMsg && (                  
+                          <div style={{ marginTop:10, padding:"8px 12px", borderRadius:8, background:C.sucBg, color:C.suc, fontSize:12, fontWeight:500 }}>                    
+                            Materials uploaded!                  
+                          </div>                
+                        )}              
+                      </div>            
+                    ) : (              
+                      <div style={{ background:C.wht, borderRadius:14, padding:20, border:`1px solid ${C.mg}`, textAlign:"center" }}>                
+                        <div style={{ fontSize:13, color:C.tm, padding:"20px 0" }}>Select a day with a session to see details.</div>              
+                      </div>            
+                    )}            
+                    <div style={{ background:C.wrnBg, borderRadius:12, padding:"14px 16px", display:"flex", alignItems:"flex-start", gap:10 }}>              
+                      <div style={{ flexShrink:0, marginTop:1 }}><IconWarn /></div>              
+                      <div>                
+                        <div style={{ fontSize:13, fontWeight:600, color:C.wrn }}>Submission overdue</div>                
+                        <div style={{ fontSize:12, color:C.wrn, opacity:0.8, marginTop:2 }}>Calculus homework was due Mar 18</div>              
+                      </div>            
+                    </div>            
+                    <div style={{ background:`${C.acc}15`, borderRadius:12, padding:"14px 16px", display:"flex", alignItems:"flex-start", gap:10 }}>              
+                      <div style={{ flexShrink:0, marginTop:1 }}><IconInfo /></div>              
+                      <div>                
+                        <div style={{ fontSize:13, fontWeight:600, color:C.pri }}>Next session Thursday</div>                
+                        <div style={{ fontSize:12, color:C.ts, marginTop:2 }}>Math — Calculus with Sarah T. at 4:00 PM</div>              
+                      </div>            
+                    </div>          
+                  </div>        
+                </div>      
+              </div>    
+            </div>  
+          );
+        }
+
+        function MessagesPage() {  
+          const [active, setActive] = useState("tutor");  
+          const [input, setInput] = useState("");  
+          const [chats, setChats] = useState(INIT_CHATS);  
+          const endRef = useRef(null);  
+          useEffect(() => {    
+            endRef.current?.scrollIntoView({ behavior:"smooth" });  
+          }, [chats, active]);  
+          const chat = chats[active];  
+          const send = () => {    
+            if (!input.trim()) return;    
+            setChats(p => ({      
+              ...p,      
+              [active]: {        
+                ...p[active],        
+                messages: [...p[active].messages, { from:"me", text:input.trim(), time:"Now" }],      
+              },    
+            }));    
+            setInput("");  
+          };  
+          return (    
+            <div style={{ display:"flex", flexDirection:"column", height:"100vh" }}>      
+              <Header title="Messages" sub="Chat with your tutors and support." />      
+              <div style={{ flex:1, margin:"0 36px 36px", borderRadius:14, overflow:"hidden", border:`1px solid ${C.mg}`, display:"flex", background:C.wht, minHeight:0 }}>        
+                <div style={{ width:220, borderRight:`1px solid ${C.mg}`, display:"flex", flexDirection:"column", overflowY:"auto" }}>          
+                  <div style={{ padding:"16px 16px 12px", fontSize:12, fontWeight:600, color:C.tm, textTransform:"uppercase", letterSpacing:"0.5px" }}>Conversations</div>          
+                  {Object.entries(chats).map(([key, c]) => {            
+                    const isCur = active === key;            
+                    const last = c.messages[c.messages.length - 1];            
+                    return (              
+                      <div key={key} onClick={() => setActive(key)} className="cc"                
+                        style={{                  
+                          padding:"12px 16px", cursor:"pointer",                  
+                          background: isCur ? `${C.acc}22` : "transparent",                  
+                          borderLeft: isCur ? `3px solid ${C.pri}` : "3px solid transparent",                
+                        }}>                
+                        <div style={{ display:"flex", alignItems:"center", gap:8 }}>                  
+                          <div style={{                    
+                            width:34, height:34, borderRadius:"50%",                    
+                            background: isCur ? C.pri : C.mg,                    
+                            color: isCur ? C.wht : C.ts,                    
+                            display:"flex", alignItems:"center", justifyContent:"center",                    
+                            fontSize:13, fontWeight:600, flexShrink:0,                  }}>{c.name.charAt(0)}</div>                  
+                          <div style={{ flex:1, minWidth:0 }}>                    
+                            <div style={{ fontSize:14, fontWeight: isCur ? 600 : 500, color:C.tp, display:"flex", alignItems:"center", gap:6 }}>                      
+                              {c.name}                      
+                              {c.online && <span style={{ width:7, height:7, borderRadius:"50%", background:C.suc, display:"inline-block" }} />}                    
+                            </div>                    
+                            <div style={{ fontSize:12, color:C.tm, marginTop:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>                      
+                              {last.text.slice(0, 35)}{last.text.length > 35 ? "..." : ""}                    
+                            </div>                  
+                          </div>                
+                        </div>              
+                      </div>            
+                    );          
+                  })}        
+                </div>        
+                <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0 }}>          
+                  <div style={{ padding:"14px 20px", borderBottom:`1px solid ${C.mg}`, display:"flex", alignItems:"center", gap:10 }}>            
+                    <div style={{ fontSize:16, fontWeight:600, color:C.tp }}>{chat.name}</div>            
+                    <span style={{ fontSize:11, fontWeight:500, color:C.tm, background:C.lg, padding:"3px 10px", borderRadius:20 }}>{chat.role}</span>            
+                    {chat.online && <span style={{ fontSize:12, color:C.suc, marginLeft:"auto" }}>Online</span>}          
+                  </div>          
+                  <div style={{ flex:1, padding:20, overflowY:"auto", display:"flex", flexDirection:"column", gap:10, background:C.lg }}>            
+                    {chat.messages.map((msg, i) => (              
+                      <div key={i} style={{ alignSelf: msg.from === "me" ? "flex-end" : "flex-start", maxWidth:"65%" }}>                
+                        <div style={{                  
+                          padding:"10px 16px", borderRadius:16,                  
+                          borderBottomRightRadius: msg.from === "me" ? 4 : 16,                  
+                          borderBottomLeftRadius: msg.from === "them" ? 4 : 16,                  
+                          background: msg.from === "me" ? C.pri : C.wht,                  
+                          color: msg.from === "me" ? C.wht : C.tp,                  
+                          fontSize:14, lineHeight:1.5,                  
+                          boxShadow: msg.from === "them" ? "0 1px 3px rgba(0,0,0,0.04)" : "none",                }}>{msg.text}</div>                
+                        <div style={{ fontSize:11, color:C.tm, marginTop:4, textAlign: msg.from === "me" ? "right" : "left", padding:"0 4px" }}>{msg.time}</div>              
+                      </div>            
+                    ))}            
+                    <div ref={endRef} />          
+                  </div>          
+                  <div style={{ padding:"14px 20px", borderTop:`1px solid ${C.mg}`, display:"flex", gap:10, alignItems:"center", background:C.wht }}>            
+                    <button style={{ width:38, height:38, borderRadius:"50%", border:`1px solid ${C.mg}`, background:"transparent", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>              
+                      <IconAttach />            
+                    </button>            
+                    <input              
+                      value={input}              
+                      onChange={e => setInput(e.target.value)}              
+                      onKeyDown={e => { if (e.key === "Enter") send(); }}              
+                      placeholder="Type a message..."              
+                      style={{ flex:1, padding:"10px 16px", borderRadius:12, border:`1px solid ${C.mg}`, fontSize:14, color:C.tp, background:C.lg }}            
+                    />            
+                    <button onClick={send} style={{ width:40, height:40, borderRadius:"50%", border:"none", background:C.pri, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>              
+                      <IconSend />            
+                    </button>          
+                  </div>        
+                </div>      
+              </div>    
+            </div>  
+          );
+        }
+
+        function App() {  
+          const [page, setPage] = useState("home");  
+          return (    
+            <div style={{ display:"flex", minHeight:"100vh", background:C.lg }}>      
+              <style>{globalCSS}</style>      
+              <Sidebar page={page} setPage={setPage} />      
+              <main style={{ marginLeft:240, flex:1, minHeight:"100vh" }}>        
+                {page === "home" && <HomePage />}        
+                {page === "calendar" && <CalendarPage />}        
+                {page === "messages" && <MessagesPage />}      
+              </main>    
+            </div>  
+          );
+        }
+
+        // 挂载执行
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
